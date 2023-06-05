@@ -29,3 +29,30 @@
     become: yes
     shell: "xzcat {{os_image}} > {{ssd_dev}}"
     when: os_image is defined
+
+  - name: probe partitions
+    become: yes
+    shell: "partprobe {{ ssd_dev }}"
+
+# Extend the 2nd (root) partition.
+  - name: Read device information (always use unit when probing) (doesn't work)
+    community.general.parted: device="{{ ssd_dev }}" unit=MiB
+    register: ssd_info
+
+  - name: show partition infgo
+    debug: var=ssd_info.stdout_lines
+
+  - name: Extend root partition (2nd)
+    community.general.parted:
+      device: "{{ ssd_dev }}"
+      number: 2
+      part_end: "30GiB"
+      resize: true
+      state: present
+
+  - name: Create partition for ZFS (2nd)
+    parted:
+      device: "{{ ssd_dev }}"
+      number: 3
+      state: present
+

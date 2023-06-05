@@ -38,7 +38,8 @@ Phase 2
 
 ### provision-Debian.yml
 
-ansible-playbook provision-Debian.yml -b -K --extra-vars \
-    "ssd_dev=/dev/sdb \
+```text
+ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdb \
     os_image=/home/hbarta/Downloads/Pi/Debian/20230425_raspi_4_bullseye.img.xz \
     new_host_name=somehostname"
+```
