@@ -1,5 +1,5 @@
 ---
-# Install and provision an SD card on localhost (before first boot.)
+# Install and provision an SSD on localhost (before first boot.)
 - name: Provision SD card before initial boot
   hosts: localhost
   connection: local 
