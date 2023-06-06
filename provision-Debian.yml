@@ -36,10 +36,11 @@
 
 # Extend the 2nd (root) partition.
   - name: Read device information (always use unit when probing) (doesn't work)
+    become: yes
     community.general.parted: device="{{ ssd_dev }}" unit=MiB
     register: ssd_info
 
-  - name: show partition infgo
+  - name: show partition info
     debug: var=ssd_info.stdout_lines
 
   - name: Extend root partition (2nd)
