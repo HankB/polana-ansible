@@ -89,4 +89,4 @@ Number  Start     End        Size       Type     File system  Flags
 hbarta@olive:~/Programming/polana-ansible$
 ```
 
-Since the 2nd partition ends at `62914559s` the start of the third partition is `62914559s`.
+Since the 2nd partition ends at `62914559s` the start of the third partition is `629145660s`.
