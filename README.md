@@ -63,7 +63,13 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
 ```
 
+### firstboot-install-python.yml
 
+The Debian install does not include Python so this playbook installs it so subsequent playbooks can use normal playbook tasks.
+
+```text
+ansible-playbook firstboot-install-python.yml -i inventory -u root
+```
 
 ## Errata
 

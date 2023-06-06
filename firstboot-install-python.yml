@@ -1,0 +1,20 @@
+---
+# perform tasks to configure polana (HASS/MariaDB/Mosquitto)
+# on first boot
+
+- name: Install Python on initial boot
+  hosts: polana2
+  gather_facts: no
+  tasks:
+
+  - name: apt update
+    raw: apt update
+
+  - name: apt upgrade
+    raw: apt upgrade -y
+
+  - name: install Python3
+    raw: apt install -y python3 
+
+  - name: reboot
+    ansible.builtin.reboot:
