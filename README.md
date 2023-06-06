@@ -32,6 +32,16 @@ Phase 2
 1. Install Mosquitto, MariaDB and HASS Docker images. and backup data from other host. (And create any useful ZFS filesystems as needed.)
 1. Install Checkmk agent.
 
+
+## Status
+
+* `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"`
+* `Create partition for ZFS ` results in
+
+```text
+fatal: [localhost]: FAILED! => {"changed": false, "err": "Error: You requested a partition from 0.00kiB to 117220824kiB (sectors 0..234441647).\nThe closest location we can manage is 0.50kiB to 4096kiB (sectors 1..8191).\n", "msg": "Error while running parted script: /usr/sbin/parted -s -m -a optimal /dev/sdb -- unit KiB mkpart primary 0% 100%", "out": "", "rc": 1}
+```
+
 ## Phase 1 - provision SSD
 
 ***NOTE: Be absolutely certain that the correct SSD device is provided***
