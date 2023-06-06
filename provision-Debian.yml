@@ -85,3 +85,24 @@
   - name: export pool
     become: yes
     command: zpool export "{{poolname}}" 
+
+# change host name
+
+  - name: create root partition mount point
+    become: yes
+    file:
+      path: /mnt/RASPIROOT 
+      state: directory
+
+
+  - name: mount new root partition
+    become: yes
+    command: "mount {{ssd_dev}}2 /mnt/RASPIROOT"
+
+  - name: change hostname in /etc/hosts
+    become: yes
+    shell: "echo  {{new_host_name}} >/mnt/RASPIROOT/etc/hostname"
+
+  - name: unmount root partition
+    become: yes
+    command: "umount /mnt/RASPIROOT"
