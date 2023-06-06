@@ -51,8 +51,19 @@ fatal: [localhost]: FAILED! => {"changed": false, "err": "Error: You requested a
 ```text
 ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     os_image=/home/hbarta/Downloads/Pi/Debian/20230425_raspi_4_bullseye.img.xz \
-    new_host_name=polana2 poolname=polana_tank"
+    new_host_name=polana2 poolname=polana_tank \
+    eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
+    wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
 ```
+
+```text
+ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
+    new_host_name=polana2 poolname=polana_tank \
+    eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
+    wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
+```
+
+
 
 ## Errata
 

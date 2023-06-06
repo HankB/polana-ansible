@@ -94,7 +94,6 @@
       path: /mnt/RASPIROOT 
       state: directory
 
-
   - name: mount new root partition
     become: yes
     command: "mount {{ssd_dev}}2 /mnt/RASPIROOT"
@@ -102,6 +101,28 @@
   - name: change hostname in /etc/hosts
     become: yes
     shell: "echo  {{new_host_name}} >/mnt/RASPIROOT/etc/hostname"
+
+# Spoof WiFi and Ethernet MAC
+
+  - name: spoof Ethernet MAC addresses
+    copy:
+      dest: /mnt/RASPIROOT/etc/systemd/network/00-ethernet.link
+      content: |
+        [Match]
+        MACAddress={{eth_hw_mac}}
+
+        [Link]
+        MACAddress={{eth_spoof_mac}}
+
+  - name: spoof WiFi MAC addresses
+    copy:
+      dest: /mnt/RASPIROOT/etc/systemd/network/00-wifi.link
+      content: |
+        [Match]
+        MACAddress={{wifi_hw_mac}}
+
+        [Link]
+        MACAddress={{wifi_spoof_mac}}
 
   - name: unmount root partition
     become: yes
