@@ -44,6 +44,7 @@
     debug: var=ssd_info.stdout_lines
 
   - name: Extend root partition (2nd)
+    become: yes
     community.general.parted:
       device: "{{ ssd_dev }}"
       number: 2
@@ -51,7 +52,12 @@
       resize: true
       state: present
 
+  - name: Resize EXT4 filesystem
+    become: yes
+    shell: "e2fsck -p -f {{ ssd_dev }}2 && resize2fs {{ ssd_dev }}2"
+
   - name: Create partition for ZFS (3rd)
+    become: yes
     parted:
       device: "{{ ssd_dev }}"
       number: 3
