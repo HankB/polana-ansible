@@ -127,3 +127,40 @@
   - name: unmount root partition
     become: yes
     command: "umount /mnt/RASPIROOT"
+
+# copy SSH credentials for root login
+
+  - name: create boot partition mount point
+    become: yes
+    file:
+      path: /mnt/RASPIFIRM
+      state: directory
+
+  - name: mount new boot partition
+    become: yes
+    command: "mount {{ssd_dev}}1 /mnt/RASPIFIRM"
+
+  - name: stat ~/.ssh/id_rsa.pub
+    become: no
+    stat:
+      path: ~/.ssh/id_rsa.pub
+    register: id_rsa_pub
+   
+  - name: create variable with SSH credentials
+    become: no
+    shell: "echo  root_authorized_key=$(cat ~/.ssh/id_rsa.pub)"
+    register: ssh_creds
+    when: id_rsa_pub.stat.exists
+
+  - name: report ssh_creds
+    debug: 
+      msg: ssh_creds.stdout
+    when: id_rsa_pub.stat.exists
+
+  - name: copy SSH credentials
+    shell: "echo {{ssh_creds.stdout}} >>/mnt/RASPIFIRM/sysconf.txt"
+    when: id_rsa_pub.stat.exists
+        
+  - name: unmount boot partition
+    become: yes
+    command: "umount /mnt/RASPIFIRM"
