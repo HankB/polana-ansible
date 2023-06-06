@@ -73,13 +73,13 @@
   - name: show ZFS partition
     debug: var=ZFS_part.stdout_lines
 
-  - name: create pool
+  - name: create pool # probably not idempotent
     become: yes
     command: |
       zpool create -f -o ashift=12 
         -O acltype=posixacl -O canmount=off -O compression=lz4
         -O dnodesize=auto -O normalization=formD -O relatime=on -O xattr=sa
-        -O mountpoint=/mnt -R /mnt/tank
+        -O mountpoint=/mnt -R /mnt/"{{poolname}}"
         "{{poolname}}" /dev/disk/by-id/"{{ZFS_part.stdout_lines.0}}"
 
   - name: export pool
