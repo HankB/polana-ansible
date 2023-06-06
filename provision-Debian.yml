@@ -51,9 +51,11 @@
       resize: true
       state: present
 
-  - name: Create partition for ZFS (2nd)
+  - name: Create partition for ZFS (3rd)
     parted:
       device: "{{ ssd_dev }}"
       number: 3
+      part_start: 62914560s
+      part_end: -1s
       state: present
 

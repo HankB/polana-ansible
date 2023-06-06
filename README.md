@@ -49,7 +49,33 @@ fatal: [localhost]: FAILED! => {"changed": false, "err": "Error: You requested a
 ### provision-Debian.yml
 
 ```text
- ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdb \
+ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     os_image=/home/hbarta/Downloads/Pi/Debian/20230425_raspi_4_bullseye.img.xz \
     new_host_name=somehostname"
 ```
+
+## Errata
+
+The starting point for the third partition is hard coded and depends on the size to which the 2nd partition is resized. If the size of the 2nd partitiopn is changed, the starting point for the third partition can be determined by e.g.
+
+```text
+hbarta@olive:~/Programming/polana-ansible$ echo "unit s print" |sudo parted  /dev/sdc
+GNU Parted 3.5
+Using /dev/sdc
+Welcome to GNU Parted! Type 'help' to view a list of commands.
+(parted) unit s print                                                     
+Model: ATA SATA SSD (scsi)
+Disk /dev/sdc: 234441648s
+Sector size (logical/physical): 512B/512B
+Partition Table: msdos
+Disk Flags: 
+
+Number  Start     End        Size       Type     File system  Flags
+ 1      8192s     1048575s   1040384s   primary  fat16        lba
+ 2      1048576s  62914559s  61865984s  primary  ext4
+
+(parted)                                                                  
+hbarta@olive:~/Programming/polana-ansible$
+```
+
+Since the 2nd partition ends at `62914559s` the start of the third partition is `62914559s`.
