@@ -1,0 +1,62 @@
+---
+# Install Docker
+# instructions https://docs.docker.com/engine/install/debian/#install-using-the-repository
+
+  - name: install Docker prerequisites 
+    apt:
+      cache_valid_time: 3600
+      pkg:
+      - ca-certificates
+      - curl
+      - gnupg
+
+  - name: add dir for key
+    file: 
+      path: /etc/apt/keyrings
+      state: directory
+      mode: '0755'
+      
+  - name: fetch Docker's official GPG key
+    get_url: 
+      dest: /tmp/docker.gpg
+      url: https://download.docker.com/linux/debian/gpg
+
+  - name: remove key file
+    file:
+      path: /etc/apt/keyrings/docker.gpg
+      state: absent
+
+  - name: add Docker's official GPG key
+    command: "gpg --dearmor -o /etc/apt/keyrings/docker.gpg /tmp/docker.gpg"
+
+  - name: set perms on key file
+    file:
+      path: /etc/apt/keyrings/docker.gpg
+      mode: 'a+r'
+
+  # setup Docker repo
+  - name: load  Docker sources.list
+    shell: |
+      echo \
+      deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/debian \
+      $(. /etc/os-release && echo $VERSION_CODENAME) stable >/etc/apt/sources.list.d/docker.list
+
+  # install Docker
+  - name: install Docker 
+    apt:
+      update_cache: 'yes'
+      pkg:
+      - docker-ce
+      - docker-ce-cli
+      - containerd.io
+      - docker-buildx-plugin
+      - docker-compose-plugin
+
+  # configure Docker to use ZFS
+  - name: configure Docker to use ZFS
+    copy:
+      dest: /etc/docker/daemon.json
+      content: |
+        {
+          "storage-driver": "zfs"
+        }
