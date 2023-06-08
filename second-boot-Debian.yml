@@ -32,6 +32,7 @@
       - lzop
       - iperf3
       - locales
+      - tmux
 
 # timezone
   - name: Set timezone 
@@ -64,7 +65,7 @@
   
   - name: install ZFS prerequisites
     apt:
-      cache_valid_time: 3600
+      update_cache: 'yes'
       pkg:
       - dpkg-dev
       - linux-headers-generic
@@ -82,6 +83,7 @@
   - name: check if polana_tank already imported
     command: zpool list -H -o name polana_tank
     register: polana_tank_imported
+    ignore_errors: 'yes'
 
   - name: import pool
     command: "zpool import polana_tank"

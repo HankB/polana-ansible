@@ -65,13 +65,15 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
 
 The Debian install does not include Python so this playbook installs it so subsequent playbooks can use normal playbook tasks.
 
+*Note: SSH in from command line first or this playbook will fail.*
+
 ```text
 ansible-playbook first-boot-Debian.yml -i inventory -u root
 ```
 
 ### second-boot-Debian.yml
 
-This performs the bulk of the setup, and configuration
+This performs the bulk of the setup and configuration.
 
 ```text
 ansible-playbook second-boot-Debian.yml -i inventory -u root
