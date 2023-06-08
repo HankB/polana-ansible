@@ -35,12 +35,8 @@ Phase 2
 
 ## Status
 
-* `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"`
-* `Create partition for ZFS ` results in
-
-```text
-fatal: [localhost]: FAILED! => {"changed": false, "err": "Error: You requested a partition from 0.00kiB to 117220824kiB (sectors 0..234441647).\nThe closest location we can manage is 0.50kiB to 4096kiB (sectors 1..8191).\n", "msg": "Error while running parted script: /usr/sbin/parted -s -m -a optimal /dev/sdb -- unit KiB mkpart primary 0% 100%", "out": "", "rc": 1}
-```
+* `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"` (At present not needed)
+* `second-boot-Debian.yml` is work in progress. Need to check for pool already imported before importing it.
 
 ## Phase 1 - provision SSD
 
@@ -55,6 +51,8 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
     wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
 ```
+
+Command w/out reloading the image, mostly for testing
 
 ```text
 ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
