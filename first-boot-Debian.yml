@@ -1,6 +1,6 @@
 ---
-# Install Python on first boot. Can't gather_facts w/out it so remaioning tasks 
-# will be performed in another playbook
+# Install Python on first boot. Can't gather_facts w/out it so
+# remaining tasks will be performed in another playbook
 
 - name: Install Python on initial boot
   hosts: polana2
