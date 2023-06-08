@@ -1,0 +1,127 @@
+---
+# perform tasks to configure polana (HASS/MariaDB/Mosquitto)
+# after the environment is sufficiently configured. (e.g. Python)
+
+- name: Bulk of setup during second boot
+  hosts: polana2
+  vars:
+    config_system_locale: 'en_US.UTF-8'
+    config_system_language: 'en_US.UTF-8'
+  tasks:
+
+# install some programs
+  - name: update/upgrade
+    apt:
+      cache_valid_time: 3600
+      install_recommends: no
+      upgrade: yes
+      autoclean: yes
+
+  - name: install commonly used applications
+    apt:
+      pkg:
+      - vim
+      - mosquitto-clients
+      - tree
+      - lsof
+      - mbuffer
+      - s-tui
+      - stress-ng
+      - rsync
+      - git
+      - lzop
+      - iperf3
+      - locales
+
+# timezone
+  - name: Set timezone 
+    timezone:
+      name: America/Chicago
+
+# Locale
+  - name: Ensure a locale exists
+    community.general.locale_gen:
+      name: en_US.UTF-8
+      state: present
+  
+# install ZFS following instructions at 
+# https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/index.html#installation
+
+  - name: configure packages for ZFS from backports
+    copy:
+      dest: /etc/apt/sources.list.d/bullseye-backports.list
+      content: |
+        deb http://deb.debian.org/debian bullseye-backports main contrib
+        deb-src http://deb.debian.org/debian bullseye-backports main contrib
+  
+  - name: Set priorities for ZFS in backports
+    copy:
+      dest: /etc/apt/preferences.d/90_zfs
+      content: |
+        Package: src:zfs-linux
+        Pin: release n=bullseye-backports
+        Pin-Priority: 990
+  
+  - name: install ZFS prerequisites
+    apt:
+      cache_valid_time: 3600
+      pkg:
+      - dpkg-dev
+      - linux-headers-generic
+      - linux-image-generic
+
+  - name: install ZFS
+    apt:
+      cache_valid_time: 3600
+      pkg:
+      - zfs-dkms 
+      - zfsutils-linux
+
+  - name: import pool
+    command: "zpool import polana_tank"
+
+  - name: Create filesystem for hbarta's home dir
+    community.general.zfs:
+      name: polana_tank/home/hbarta
+      state: present
+      extra_zfs_properties:
+        canmount: 'on'
+        mountpoint: '/home/hbarta'
+    # remember to set ownership after the user is actually created.
+
+# Docker on ZFS info at https://docs.docker.com/storage/storagedriver/zfs-driver/
+  - name: Create filesystem for Docker 
+    community.general.zfs:
+      name: polana_tank/docker
+      state: present
+      extra_zfs_properties:
+        canmount: 'on'
+        mountpoint: '/var/lib/docker'
+
+# Install Docker
+  - include_tasks: docker-install.yml
+
+# add user "hbarta"
+  - name: add user hbarta
+    user:
+      name: hbarta
+      comment: HB
+      shell: /bin/bash
+      generate_ssh_key: 'yes'
+      create_home: 'no'
+      groups: admin,sudo
+      append: 'yes'
+      password: $6$mysecretsalt$qJbapG68nyRab3gxvKWPUcs2g3t0oMHSHMnSKecYNpSi3CuZm.GbBqXO8BE6EI6P1JUefhA0qvD7b5LSh./PU1
+      # 'mypassword'
+
+# Force password change on first login
+  - name: force password change
+    command: passwd --expire hbarta
+
+# Change ownership of home dir
+  - name: fix /home/hbarta ownership
+    file:
+      path: /home/hbarta
+      owner: hbarta
+      group: hbarta
+ 
