@@ -2,16 +2,17 @@
 
 Playbooks to provision and configure HASS on polana (Pi 3B/4B or similar). The initial plan assumes an SSD will be used for storage (vs. SD card) and that the host will boot from the SSD.
 
+This is planned to be a "once and done" process so polish is eschewed in favor of expedience. Many of the tasks are likely to be otherwise useful so they can be polished then as appropriate. In particular, things such as host name, pool name, user name and probably other things are hard coded rather than being parameterized.
+
 Tasks fall into 2 general categories. First loading the OS to the target SSD on another host and then configuring the system as needed once it is up and running. More specifically
 
-Phase 1
+Phase 1 - SSD in another host
 
 1. `blkdiscard` SSD.
 1. Copy OS to the SSD.
 1. Expand the root partition and create another partition (to use for ZFS.)
-1. hostname?
-1. Create user?
-1. Create ZFS pool on the target SSD and create filesystems for various usage.
+1. hostname
+1. Create ZFS pool on the target SSD. (filesystems creation is done later in the target environment so the ZFS cache is correct. I suppose this requires ZFS in the 'other' host.)
 
 ```text
 rpool/home/hbarta               579G   276G     81.7G  /home/hbarta
@@ -22,25 +23,40 @@ rpool/var/cache                3.76G   276G     3.70G  /var/cache
 rpool/var/log                   403M   276G      400M  /var/log
 ```
 
-Phase 2
+Phase 2 - first part
 
-1. Install ZFS and copy/mount directories.
-1. Install packages from repos.
-1. Set hostname (if not previously done.)
-1. Add user (if not previously done.)
+The tested Debian inage does not include Python which is normally used by Ansible so the first stage in the target environment simply installs that.
+
+1. Update and upgrade packages.
+1. Install Python.
+
+Phase 2 - second part
+
+This does the heavy lifting to prepare the environment including
+
+1. Install some useful packages from repos.
+1. Set locale and timezone
+1. Install ZFS and create desired filesystems (for user and Docker)
 1. Install Docker.
-1. Install Mosquitto, MariaDB and HASS Docker images. and backup data from other host. (And create any useful ZFS filesystems as needed.)
-1. Install Checkmk agent.
-
+1. Add user.
+1. Install Mosquitto, MariaDB and HASS Docker images. and backup data from other host. (And create any useful ZFS filesystems as needed.) (TODO?)
+1. Install Checkmk agent. (TODO)
 
 ## Status
 
 * `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"` (At present not needed)
-* `second-boot-Debian.yml` is work in progress. Need to check for pool already imported before importing it.
+* Playbooks as presently coded are working. There is room for improvement.
+
+## TODO
+
+* Decide if a playbook or script is more suitable for migrating Docker containers from `polana` to `polana2`
+* Produce a playbook for typical user settings.
+* Disable root login? Need to be sure `sudo` is working.
+* Maybe I should versoin and release?
 
 ## Phase 1 - provision SSD
 
-***NOTE: Be absolutely certain that the correct SSD device is provided***
+***NOTE: Be absolutely certain that the correct SSD device is provided. (Yeah, I did.)***
 
 ### provision-Debian.yml
 
@@ -63,7 +79,7 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
 
 ### first-boot-Debian.yml
 
-The Debian install does not include Python so this playbook installs it so subsequent playbooks can use normal playbook tasks.
+The Debian install does not include Python so this playbook installs it so subsequent playbooks can use regular playbook tasks.
 
 *Note: SSH in from command line first or this playbook will fail.*
 
@@ -104,3 +120,7 @@ hbarta@olive:~/Programming/polana-ansible$
 ```
 
 Since the 2nd partition ends at `62914559s` the start of the third partition is `629145660s`.
+
+## Contributing
+
+I would be delighted if someone found this interesting and useful enough to tweak it and contribute their changes back. This includes anything from fixing typos to refactoring the playbooks and parameterizing the (too many) hard coded things. Of course I reserve the right to reject any PRs that compromise my ability to use this, but I doubt that is going to happen.
