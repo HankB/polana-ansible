@@ -45,7 +45,7 @@ This does the heavy lifting to prepare the environment including
 ## Status
 
 * `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"` (At present not needed)
-* Playbooks as presently coded are working. There is room for improvement.
+* Playbooks as presently coded are working for a Pi 4B/8GB. There is room for improvement.
 
 ## TODO
 
@@ -54,6 +54,8 @@ This does the heavy lifting to prepare the environment including
 * Disable root login? Need to be sure `sudo` is working.
 * Maybe I should versoin and release?
 * Configure WiFi.
+* Test with Bookworm.
+* Test on Pi 3B/3B+
 
 ## Phase 1 - provision SSD
 
