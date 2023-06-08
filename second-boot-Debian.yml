@@ -77,8 +77,15 @@
       - zfs-dkms 
       - zfsutils-linux
 
+# Check for pool already imported
+# If so, asume the necessary filesystems are also created.
+  - name: check if polana_tank already imported
+    command: zpool list -H -o name polana_tank
+    register: polana_tank_imported
+
   - name: import pool
     command: "zpool import polana_tank"
+    when: polana_tank_imported.stdout is not match("polana_tank")
 
   - name: Create filesystem for hbarta's home dir
     community.general.zfs:
@@ -109,7 +116,7 @@
       shell: /bin/bash
       generate_ssh_key: 'yes'
       create_home: 'no'
-      groups: admin,sudo
+      groups: sudo,docker
       append: 'yes'
       password: $6$mysecretsalt$qJbapG68nyRab3gxvKWPUcs2g3t0oMHSHMnSKecYNpSi3CuZm.GbBqXO8BE6EI6P1JUefhA0qvD7b5LSh./PU1
       # 'mypassword'
