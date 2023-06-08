@@ -1,6 +1,6 @@
 # polana-ansible
 
-Playbooks to provision and configure HASS on polana (Pi 3B/4B or similar). The initial plan assumes an SSD will be used for storage (vs. SD card) and that the host will boot from the SSD.
+Playbooks to provision and configure a Raspberry Pi (Pi 3B/4B or similar) with the intent to migrate an existing install to the newly conmfigured host. (The actual migration is beyond the scope of this project at present.) The initial plan assumes an SSD will be used for storage (vs. SD card) and that the host will boot from the SSD. Tested Debian images can be found at <https://raspi.debian.net/tested-images/>.
 
 This is planned to be a "once and done" process so polish is eschewed in favor of expedience. Many of the tasks are likely to be otherwise useful so they can be polished then as appropriate. In particular, things such as host name, pool name, user name and probably other things are hard coded rather than being parameterized.
 
@@ -53,6 +53,7 @@ This does the heavy lifting to prepare the environment including
 * Produce a playbook for typical user settings.
 * Disable root login? Need to be sure `sudo` is working.
 * Maybe I should versoin and release?
+* Configure WiFi.
 
 ## Phase 1 - provision SSD
 
