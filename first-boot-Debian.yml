@@ -3,7 +3,7 @@
 # remaining tasks will be performed in another playbook
 
 - name: Install Python on initial boot
-  hosts: polana2
+  hosts: all
   gather_facts: no
   tasks:
 
