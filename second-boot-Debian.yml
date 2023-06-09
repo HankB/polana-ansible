@@ -3,7 +3,7 @@
 # after the environment is sufficiently configured. (e.g. Python)
 
 - name: Bulk of setup during second boot
-  hosts: polana2
+  hosts: all
   vars:
     config_system_locale: 'en_US.UTF-8'
     config_system_language: 'en_US.UTF-8'
