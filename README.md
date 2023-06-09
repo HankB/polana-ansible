@@ -44,6 +44,8 @@ This does the heavy lifting to prepare the environment including
 
 ## Status
 
+**Problems!** See issue #1. I've been all over the map with this and while trying to sort the issue with disappearing containers, have encountered issues with the OS seeming to lose connection with the SSD. This is not ready for use.
+
 * `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"` (At present not needed)
 * Playbooks as presently coded are working for a Pi 4B/8GB. There is room for improvement.
 
