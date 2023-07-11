@@ -47,17 +47,18 @@ This does the heavy lifting to prepare the environment including
 **Problems!** See issue #1. I've been all over the map with this and while trying to sort the issue with disappearing containers, have encountered issues with the OS seeming to lose connection with the SSD. This is not ready for use.
 
 * `Read device information` results in `"ssd_info.stdout_lines": "VARIABLE IS NOT DEFINED!"` (At present not needed)
-* Playbooks as presently coded are working for a Pi 4B/8GB. There is room for improvement.
+* Playbooks as presently coded are working for a Pi 4B/8GB. There is room for improvement. (Have been tested with Pi 3B/3B+ and work.)
+* `second-boot-Debian.yml` supports Bullseye and is no longer supported and has known bugs. If you really need to use it, some fixes will be needed. Feel free to file an issue and submit a PR.
 
 ## TODO
 
-* Decide if a playbook or script is more suitable for migrating Docker containers from `polana` to `polana2`
+* Decide if a playbook or script is more suitable for migrating Docker containers from `polana` to `polana2`. This involves running commands on both systems and automation is set aside for now.
 * Produce a playbook for typical user settings.
 * Disable root login? Need to be sure `sudo` is working.
-* Maybe I should versoin and release?
+* Maybe I should version and release?
 * Configure WiFi.
-* Test with Bookworm.
-* Test on Pi 3B/3B+
+* Test with Bookworm.- done Bullseye no longer suypported.
+* Test on Pi 3B/3B+ - done and working.
 
 ## Phase 1 - provision SSD
 
@@ -77,7 +78,7 @@ Command w/out reloading the image, mostly for testing
 
 ```text
 ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
-    new_host_name=polana2 poolname=polana_tank \
+    new_host_name=polana2 poolname=tank \
     eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
     wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
 ```
@@ -86,18 +87,21 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
 
 The Debian install does not include Python so this playbook installs it so subsequent playbooks can use regular playbook tasks.
 
-*Note: SSH in from command line first or this playbook will fail.*
+*Note: SSH to `root@new_host_name` from command line first or this playbook will fail.*
 
 ```text
 ansible-playbook first-boot-Debian.yml -i inventory -u root
 ```
 
-### second-boot-Debian.yml
+### second-boot-Debian.yml, second-boot-bookworm-Debian.yml
 
 This performs the bulk of the setup and configuration.
 
 ```text
-ansible-playbook second-boot-Debian.yml -i inventory -u root
+ansible-playbook second-boot-Debian.yml -i inventory -u root \
+     --extra-vars "poolname=tank"
+ansible-playbook second-boot-bookworm-Debian.yml -i inventory -u root \
+     --extra-vars "poolname=tank"
 ```
 
 ## Errata
