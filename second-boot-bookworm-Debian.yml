@@ -33,6 +33,8 @@
       - iperf3
       - locales
       - tmux
+      - wget
+      - mariadb-client
 
 # timezone
   - name: Set timezone 
@@ -58,7 +60,7 @@
 
   - name: install ZFS
     apt:
-      cache_valid_time: 3600
+      update_cache: 'yes'
       pkg:
       - zfs-dkms 
       - zfsutils-linux
