@@ -23,6 +23,7 @@
     become: yes
     shell: "blkdiscard -f {{ssd_dev}}"
     when: os_image is defined
+    ignore_errors: true
 
 # copy OS image
   - name: copy OS image
