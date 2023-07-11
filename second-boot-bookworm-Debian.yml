@@ -67,18 +67,18 @@
 
 # Check for pool already imported
 # If so, asume the necessary filesystems are also created.
-  - name: check if polana_tank already imported
-    command: zpool list -H -o name polana_tank
-    register: polana_tank_imported
+  - name: check if ZFS pool already imported
+    command: zpool list -H -o name"{{poolname}}"
+    register: zfs_pool_imported
     ignore_errors: 'yes'
 
   - name: import pool
-    command: "zpool import polana_tank"
-    when: polana_tank_imported.stdout is not match("polana_tank")
+    command: "zpool import {{poolname}}"
+    when: zfs_pool_imported.stdout is not match("{{poolname}}")
 
   - name: Create filesystem for hbarta's home dir
     community.general.zfs:
-      name: polana_tank/home/hbarta
+      name: "{{poolname}}/home/hbarta"
       state: present
       extra_zfs_properties:
         canmount: 'on'
@@ -88,7 +88,7 @@
 # Docker on ZFS info at https://docs.docker.com/storage/storagedriver/zfs-driver/
   - name: Create filesystem for Docker 
     community.general.zfs:
-      name: polana_tank/docker
+      name: "{{poolname}}/docker"
       state: present
       extra_zfs_properties:
         canmount: 'on'
