@@ -50,6 +50,9 @@
 # install ZFS following instructions at 
 # https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/index.html#installation
   
+  - name: add contrib to sources.list
+    shell: 'sed --in-place "s/ main / main contrib /" /etc/apt/sources.list'
+
   - name: install ZFS prerequisites
     apt:
       update_cache: 'yes'
