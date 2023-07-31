@@ -36,6 +36,7 @@
       - wget
       - mariadb-client
       - smartmontools
+      - time
 
 # timezone
   - name: Set timezone 
