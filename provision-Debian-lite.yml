@@ -1,0 +1,147 @@
+---
+# Install and provision an SSD on localhost (before first boot.)
+# "lite" == no ZFS, just create the partition.
+- name: Provision SD card before initial boot
+  hosts: localhost
+  connection: local 
+  tasks:
+
+# Build a list of mounted partitions and unmount if found
+  - name: build list of mounted partitions
+    shell: "df 2>/dev/null|grep {{ssd_dev}}|awk '{print $1}'"
+    register: "partitions"
+
+  - name: list mounted partitions
+    debug: var=partitions.stdout_lines
+
+  - name: unmount partitions
+    become: yes
+    shell: "umount {{ item }}"
+    with_items: "{{ partitions.stdout_lines }}"
+
+# execute blkdiscard if the image name is provided
+  - name: erase SSD (blkdiscard)
+    become: yes
+    shell: "blkdiscard -f {{ssd_dev}}"
+    when: os_image is defined
+    ignore_errors: true
+
+# copy OS image
+  - name: copy OS image
+    become: yes
+    shell: "xzcat {{os_image}} > {{ssd_dev}}"
+    when: os_image is defined
+
+  - name: probe partitions
+    become: yes
+    shell: "partprobe {{ ssd_dev }}"
+
+# Extend the 2nd (root) partition.
+  - name: Read device information (always use unit when probing) (doesn't work)
+    become: yes
+    community.general.parted: device="{{ ssd_dev }}" unit=MiB
+    register: ssd_info
+
+  - name: show partition info
+    debug: var=ssd_info.stdout_lines
+
+  - name: Extend root partition (2nd)
+    become: yes
+    community.general.parted:
+      device: "{{ ssd_dev }}"
+      number: 2
+      part_end: "30GiB"
+      resize: true
+      state: present
+
+  - name: Resize EXT4 filesystem
+    become: yes
+    shell: "e2fsck -p -f {{ ssd_dev }}2 && resize2fs {{ ssd_dev }}2"
+
+  - name: Create partition for ZFS (3rd)
+    become: yes
+    parted:
+      device: "{{ ssd_dev }}"
+      number: 3
+      part_start: 62914560s
+      part_end: -1s
+      state: present
+
+# change host name
+
+  - name: create root partition mount point
+    become: yes
+    file:
+      path: /mnt/RASPIROOT 
+      state: directory
+
+  - name: mount new root partition
+    become: yes
+    command: "mount {{ssd_dev}}2 /mnt/RASPIROOT"
+
+  - name: change hostname in /etc/hosts
+    become: yes
+    shell: "echo  {{new_host_name}} >/mnt/RASPIROOT/etc/hostname"
+
+# Spoof WiFi and Ethernet MAC
+
+  - name: spoof Ethernet MAC addresses
+    copy:
+      dest: /mnt/RASPIROOT/etc/systemd/network/00-ethernet.link
+      content: |
+        [Match]
+        MACAddress={{eth_hw_mac}}
+
+        [Link]
+        MACAddress={{eth_spoof_mac}}
+
+  - name: spoof WiFi MAC addresses
+    copy:
+      dest: /mnt/RASPIROOT/etc/systemd/network/00-wifi.link
+      content: |
+        [Match]
+        MACAddress={{wifi_hw_mac}}
+
+        [Link]
+        MACAddress={{wifi_spoof_mac}}
+
+  - name: unmount root partition
+    become: yes
+    command: "umount /mnt/RASPIROOT"
+
+# copy SSH credentials for root login
+
+  - name: create boot partition mount point
+    become: yes
+    file:
+      path: /mnt/RASPIFIRM
+      state: directory
+
+  - name: mount new boot partition
+    become: yes
+    command: "mount {{ssd_dev}}1 /mnt/RASPIFIRM"
+
+  - name: stat ~/.ssh/id_rsa.pub
+    become: no
+    stat:
+      path: ~/.ssh/id_rsa.pub
+    register: id_rsa_pub
+   
+  - name: create variable with SSH credentials
+    become: no
+    shell: "echo  root_authorized_key=$(cat ~/.ssh/id_rsa.pub)"
+    register: ssh_creds
+    when: id_rsa_pub.stat.exists
+
+  - name: report ssh_creds
+    debug: 
+      msg: ssh_creds.stdout
+    when: id_rsa_pub.stat.exists
+
+  - name: copy SSH credentials
+    shell: "echo {{ssh_creds.stdout}} >>/mnt/RASPIFIRM/sysconf.txt"
+    when: id_rsa_pub.stat.exists
+        
+  - name: unmount boot partition
+    become: yes
+    command: "umount /mnt/RASPIFIRM"
