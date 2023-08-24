@@ -44,6 +44,8 @@ This does the heavy lifting to prepare the environment including
 
 ## Status
 
+This set of playbooks has evolved into a more general set of playbooks, mostly to configure Debian hosts on Raspbnerry Pis.
+
 I need to review the issues. At present I am usinig this as a starting point for my Debian based Pi 3/4 hosts.
 
 **Problems!** See issue #1. I've been all over the map with this and while trying to sort the issue with disappearing containers, have encountered issues with the OS seeming to lose connection with the SSD. This is not ready for use.
