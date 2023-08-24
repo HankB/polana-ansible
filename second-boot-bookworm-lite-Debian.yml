@@ -1,5 +1,8 @@
 ---
-# perform tasks to configure polana (HASS/MariaDB/Mosquitto)
+# perform tasks to configure a fairly generic Debian install
+# e.g. no ZFS or Docker
+# Note: A ZFS filesystem is created by the preboot playbook
+# (provision-Debian.yml) and this can be reformatted as desired.
 # after the environment is sufficiently configured. (e.g. Python)
 
 - name: Bulk of setup during second boot
@@ -21,7 +24,6 @@
     apt:
       pkg:
       - vim
-      - mosquitto-clients
       - tree
       - lsof
       - mbuffer
@@ -34,7 +36,6 @@
       - locales
       - tmux
       - wget
-      - mariadb-client
       - smartmontools
       - time
       - ethtool
@@ -50,59 +51,6 @@
       name: en_US.UTF-8
       state: present
   
-# install ZFS following instructions at 
-# https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/index.html#installation
-  
-  - name: add contrib to sources.list
-    shell: 'sed --in-place "s/ main / main contrib /" /etc/apt/sources.list'
-
-  - name: install ZFS prerequisites
-    apt:
-      update_cache: 'yes'
-      pkg:
-      - dpkg-dev
-      - linux-headers-generic
-      - linux-image-generic
-
-  - name: install ZFS
-    apt:
-      update_cache: 'yes'
-      pkg:
-      - zfs-dkms 
-      - zfsutils-linux
-
-# Check for pool already imported
-# If so, asume the necessary filesystems are also created.
-  - name: check if ZFS pool already imported
-    command: zpool list -H -o name"{{poolname}}"
-    register: zfs_pool_imported
-    ignore_errors: 'yes'
-
-  - name: import pool
-    command: "zpool import {{poolname}}"
-    when: zfs_pool_imported.stdout is not match("{{poolname}}")
-
-  - name: Create filesystem for hbarta's home dir
-    community.general.zfs:
-      name: "{{poolname}}/home/hbarta"
-      state: present
-      extra_zfs_properties:
-        canmount: 'on'
-        mountpoint: '/home/hbarta'
-    # remember to set ownership after the user is actually created.
-
-# Docker on ZFS info at https://docs.docker.com/storage/storagedriver/zfs-driver/
-  - name: Create filesystem for Docker 
-    community.general.zfs:
-      name: "{{poolname}}/docker"
-      state: present
-      extra_zfs_properties:
-        canmount: 'on'
-        mountpoint: '/var/lib/docker'
-
-# Install Docker
-  - include_tasks: docker-install.yml
-
 # add user "hbarta"
   - name: add user hbarta
     user:
@@ -110,8 +58,8 @@
       comment: HB
       shell: /bin/bash
       generate_ssh_key: 'yes'
-      create_home: 'no'
-      groups: sudo,docker
+      create_home: 'yes'
+      groups: sudo
       append: 'yes'
       password: $6$mysecretsalt$qJbapG68nyRab3gxvKWPUcs2g3t0oMHSHMnSKecYNpSi3CuZm.GbBqXO8BE6EI6P1JUefhA0qvD7b5LSh./PU1
       # 'mypassword'
