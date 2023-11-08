@@ -33,6 +33,7 @@
       - iperf3
       - locales
       - tmux
+      - sudo
 
 # timezone
   - name: Set timezone 
