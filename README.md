@@ -106,6 +106,8 @@ ansible-playbook second-boot-Debian.yml -i inventory -u root \
      --extra-vars "poolname=tank"
 ansible-playbook second-boot-bookworm-Debian.yml -i inventory -u root \
      --extra-vars "poolname=tank"
+ansible-playbook second-boot-bookworm-lite-Debian.yml \
+    -i inventory -l trixi -u root
 ```
 
 ## Errata
