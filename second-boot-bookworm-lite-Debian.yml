@@ -39,6 +39,7 @@
       - smartmontools
       - time
       - ethtool
+      - sudo
 
 # timezone
   - name: Set timezone 
