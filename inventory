@@ -1,5 +1,10 @@
 [all]
-gluon
+trixi
+piutil
+venus
+jupiter
+io
+tau
 
 [polana2]
 192.168.20.32
