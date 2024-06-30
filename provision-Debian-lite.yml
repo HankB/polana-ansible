@@ -56,7 +56,7 @@
 
   - name: Resize EXT4 filesystem
     become: yes
-    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}{{ part_prefix }}2"
+    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}2"
 
   - name: Create partition for ZFS (3rd)
     become: yes
