@@ -110,20 +110,20 @@
       dest: /mnt/RASPIROOT/etc/systemd/network/00-ethernet.link
       content: |
         [Match]
-        MACAddress={{eth_hw_mac}}
+        Driver=macb bcmgenet r8152
 
         [Link]
-        MACAddress={{eth_spoof_mac}}
+        MACAddress={{eth_mac}}
 
   - name: spoof WiFi MAC addresses
     copy:
       dest: /mnt/RASPIROOT/etc/systemd/network/00-wifi.link
       content: |
         [Match]
-        MACAddress={{wifi_hw_mac}}
+        Driver=rtl8xxxu brcmfmac
 
         [Link]
-        MACAddress={{wifi_spoof_mac}}
+        MACAddress={{wifi_mac}}
 
   - name: unmount root partition
     become: yes

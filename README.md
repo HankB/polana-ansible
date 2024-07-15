@@ -74,8 +74,7 @@ I need to review the issues. At present I am usinig this as a starting point for
 ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     os_image=/home/hbarta/Downloads/Pi/Debian/20230425_raspi_4_bullseye.img.xz \
     new_host_name=polana2 poolname=polana_tank part_prefix=p\
-    eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
-    wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
+    eth_mac=dc:a6:32:bf:65:b7 wifi_mac=dc:a6:32:bf:65:b8"
 ```
 
 Command w/out reloading the image, mostly for testing
@@ -83,9 +82,10 @@ Command w/out reloading the image, mostly for testing
 ```text
 ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     new_host_name=polana2 poolname=tank part_prefix=p\
-    eth_hw_mac=dc:a6:32:bf:65:b5 eth_spoof_mac=dc:a6:32:bf:65:b7 \
-    wifi_hw_mac=dc:a6:32:bf:65:b6 wifi_spoof_mac=dc:a6:32:bf:65:b8"
+    eth_mac=dc:a6:32:bf:65:b7 wifi_mac=dc:a6:32:bf:65:b8"
 ```
+
+(Please note difference for spoofing between `provision-Debian.yml` and `provision-Debian-lite.yml` until the latter is modified to match on `Driver`)
 
 ### first-boot-Debian.yml
 
