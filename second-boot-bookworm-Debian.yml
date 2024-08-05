@@ -81,7 +81,7 @@
 # Check for pool already imported
 # If so, asume the necessary filesystems are also created.
   - name: check if ZFS pool already imported
-    command: zpool list -H -o name"{{poolname}}"
+    command: zpool list -H -o name "{{poolname}}"
     register: zfs_pool_imported
     ignore_errors: 'yes'
 
