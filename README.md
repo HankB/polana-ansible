@@ -102,12 +102,17 @@ ansible-playbook first-boot-Debian.yml -i inventory -u root
 This performs the bulk of the setup and configuration.
 
 ```text
-ansible-playbook second-boot-Debian.yml -i inventory -u root \
-     --extra-vars "poolname=tank"
 ansible-playbook second-boot-bookworm-Debian.yml -i inventory -u root \
      --extra-vars "poolname=tank"
 ansible-playbook second-boot-bookworm-lite-Debian.yml \
     -i inventory -l trixi -u root
+```
+
+The following playbook is deprecated and will probably be removed. It was intended to be used with Debian Buster.
+
+```test
+ansible-playbook second-boot-Debian.yml -i inventory -u root \
+     --extra-vars "poolname=tank"
 ```
 
 ## Errata
