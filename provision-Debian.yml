@@ -55,7 +55,7 @@
 
   - name: Resize EXT4 filesystem
     become: yes
-    shell: "e2fsck -p -f {{ ssd_dev }}2 && resize2fs {{ ssd_dev }}2"
+    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}2"
 
   - name: Create partition for ZFS (3rd)
     become: yes
@@ -68,7 +68,7 @@
 
 # Create ZFS pool  (Requires ZFS tools on the host)
   - name: ID ZFS partition
-    shell: "ls -l /dev/disk/by-id|grep $(basename {{ssd_dev}})3| awk '{print $9}'"
+    shell: "ls -l /dev/disk/by-id|grep $(basename {{ssd_dev}}){{ part_prefix }}3| awk '{print $9}'"
     register: ZFS_part
 
   - name: show ZFS partition
@@ -78,6 +78,7 @@
     become: yes
     command: |
       zpool create -f -o ashift=12 
+        -o compatibility=openzfs-2.1-linux
         -O acltype=posixacl -O canmount=off -O compression=lz4
         -O dnodesize=auto -O normalization=formD -O relatime=on -O xattr=sa
         -O mountpoint=/mnt -R /mnt/"{{poolname}}"
@@ -97,7 +98,7 @@
 
   - name: mount new root partition
     become: yes
-    command: "mount {{ssd_dev}}2 /mnt/RASPIROOT"
+    command: "mount {{ssd_dev}}{{ part_prefix }}2 /mnt/RASPIROOT"
 
   - name: change hostname in /etc/hosts
     become: yes
@@ -139,7 +140,7 @@
 
   - name: mount new boot partition
     become: yes
-    command: "mount {{ssd_dev}}1 /mnt/RASPIFIRM"
+    command: "mount {{ssd_dev}}{{ part_prefix }}1 /mnt/RASPIFIRM"
 
   - name: stat ~/.ssh/id_rsa.pub
     become: no
