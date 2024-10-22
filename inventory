@@ -5,9 +5,9 @@ venus
 jupiter
 io
 tau
+shani
+meson
+mb2
 
-[polana2]
-192.168.20.32
-
-[polana3]
-192.168.20.46
+[neutron]
+192.168.1.239
