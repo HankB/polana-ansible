@@ -85,8 +85,6 @@ ansible-playbook provision-Debian.yml -b -K --extra-vars "ssd_dev=/dev/sdc \
     eth_mac=dc:a6:32:bf:65:b7 wifi_mac=dc:a6:32:bf:65:b8"
 ```
 
-(Please note difference for spoofing between `provision-Debian.yml` and `provision-Debian-lite.yml` until the latter is modified to match on `Driver`)
-
 ### first-boot-Debian.yml
 
 The Debian install does not include Python so this playbook installs it so subsequent playbooks can use regular playbook tasks.
