@@ -11,10 +11,10 @@
     raw: apt update
 
   - name: apt upgrade
-    raw: apt upgrade -y
+    raw: DEBIAN_FRONTEND=noninteractive apt upgrade -y
 
   - name: install Python3
-    raw: apt install -y python3 
+    raw: DEBIAN_FRONTEND=noninteractive apt install -y python3 
 
   - name: reboot
     ansible.builtin.reboot:
