@@ -36,36 +36,38 @@
     become: yes
     shell: "partprobe {{ ssd_dev }}"
 
-# Extend the 2nd (root) partition.
-  - name: Read device information (always use unit when probing) (doesn't work)
-    become: yes
-    community.general.parted: device="{{ ssd_dev }}" unit=MiB
-    register: ssd_info
+  - name: partitioning tasks
+    tags: 3rd_partition
+    block:
+  # Extend the 2nd (root) partition.
+    - name: Read device information (always use unit when probing) (doesn't work)
+      become: yes
+      community.general.parted: device="{{ ssd_dev }}" unit=MiB
+      register: ssd_info
 
-  - name: show partition info
-    debug: var=ssd_info.stdout_lines
+    - name: show partition info
+      debug: var=ssd_info.stdout_lines
+    - name: Extend root partition (2nd)
+      become: yes
+      community.general.parted:
+        device: "{{ ssd_dev }}"
+        number: 2
+        part_end: "30GiB"
+        resize: true
+        state: present
 
-  - name: Extend root partition (2nd)
-    become: yes
-    community.general.parted:
-      device: "{{ ssd_dev }}"
-      number: 2
-      part_end: "30GiB"
-      resize: true
-      state: present
+    - name: Resize EXT4 filesystem
+      become: yes
+      shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}2"
 
-  - name: Resize EXT4 filesystem
-    become: yes
-    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}2"
-
-  - name: Create partition for ZFS (3rd)
-    become: yes
-    parted:
-      device: "{{ ssd_dev }}"
-      number: 3
-      part_start: 62914560s
-      part_end: -1s
-      state: present
+    - name: Create partition for ZFS (3rd)
+      become: yes
+      parted:
+        device: "{{ ssd_dev }}"
+        number: 3
+        part_start: 62914560s
+        part_end: -1s
+        state: present
 
 # change host name
 
