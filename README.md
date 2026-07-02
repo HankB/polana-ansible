@@ -113,6 +113,14 @@ ansible-playbook second-boot-Debian.yml -i inventory -u root \
      --extra-vars "poolname=tank"
 ```
 
+### install-apps.yml - install commonly used apps and setup some other stuff
+
+```test
+target_host=[some-host-name]
+echo "$target_host" >> inventory
+ansible-playbook install-apps.yml -b -K -i inventory -l "$target_host"
+```
+
 ## Errata
 
 The starting point for the third partition is hard coded and depends on the size to which the 2nd partition is resized. If the size of the 2nd partitiopn is changed, the starting point for the third partition can be determined by e.g.

@@ -1,0 +1,44 @@
+---
+# Install commonly used apps on a fresh Debian (or other) install
+
+- name: Install commonly used apps
+  hosts: all
+  tasks:
+
+# install some programs
+  - name: update/upgrade
+    apt:
+      cache_valid_time: 3600
+      install_recommends: no
+      upgrade: yes
+      autoclean: yes
+
+  - name: install commonly used applications
+    apt:
+      pkg:
+      - vim
+      - mosquitto-clients
+      - tree
+      - lsof
+      - mbuffer
+      - s-tui
+      - stress-ng
+      - rsync
+      - git
+      - lzop
+      - iperf3
+      - locales
+      - tmux
+      - sudo
+      - sanoid
+
+# timezone
+  - name: Set timezone 
+    timezone:
+      name: America/Chicago
+
+# Locale
+  - name: Ensure a locale exists
+    community.general.locale_gen:
+      name: en_US.UTF-8
+      state: present
