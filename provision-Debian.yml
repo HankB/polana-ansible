@@ -1,8 +1,20 @@
 ---
 # Install and provision an SSD on localhost (before first boot.)
+#
+# Root partition size defaults to 30GiB for backward compatibility;
+# override on the command line, e.g.:
+#   ansible-playbook provision-Debian.yml -e root_size=40GiB -e ssd_dev=/dev/sdb ...
+#
+# Partitions are identified by filesystem type (ext* = root, fat* = boot/
+# firmware) rather than by number, since Debian's raspi arm64 images have
+# switched between at least two layouts:
+#   - legacy: 1=boot(fat), 2=root(ext4)
+#   - hybrid GPT: 1=root(ext4), 15=EFI(fat), boot physically first on disk
+# This lets the same playbook run unmodified against either.
+
 - name: Provision SD card before initial boot
   hosts: localhost
-  connection: local 
+  connection: local
   tasks:
 
 # Build a list of mounted partitions and unmount if found
@@ -26,79 +38,154 @@
     ignore_errors: true
 
 # copy OS image
-  - name: copy OS image
+# Current Debian cloud/raspi images ship as a .tar.xz containing a single
+# file named disk.raw at the tar root. Older-style images were a flat
+# raw image compressed directly with xz. Detect which by filename and
+# stream straight to the target device either way, without ever writing
+# a full extracted copy to local disk.
+  - name: copy OS image (tar.xz containing disk.raw)
     become: yes
-    shell: "xzcat {{os_image}} > {{ssd_dev}}"
-    when: os_image is defined
+    shell: "tar -O -xJf {{ os_image }} disk.raw | dd of={{ ssd_dev }} bs=4M status=progress conv=sparse"
+    when: os_image is defined and os_image.endswith('.tar.xz')
+
+  - name: copy OS image (flat xz-compressed raw image)
+    become: yes
+    shell: "xzcat {{ os_image }} | dd of={{ ssd_dev }} bs=4M status=progress conv=sparse"
+    when: os_image is defined and not os_image.endswith('.tar.xz')
 
   - name: probe partitions
     become: yes
     shell: "partprobe {{ ssd_dev }}"
 
-# Extend the 2nd (root) partition.
-  - name: Read device information (always use unit when probing) (doesn't work)
+# Read the partition table (read-only query: no resize/mkpart action here,
+# so parted just reports facts instead of the "doesn't work" combined
+# read+write call from the old version).
+  - name: Read device information
     become: yes
-    community.general.parted: device="{{ ssd_dev }}" unit=MiB
+    community.general.parted: device="{{ ssd_dev }}" unit=s
     register: ssd_info
 
   - name: show partition info
-    debug: var=ssd_info.stdout_lines
+    debug: var=ssd_info.partitions
 
-  - name: Extend root partition (2nd)
+# Identify root (ext*) and boot/firmware (fat*) partitions by fstype,
+# rather than assuming fixed numbers.
+  - name: identify root and boot partitions by filesystem type
+    set_fact:
+      root_part_num: "{{ ssd_info.partitions | selectattr('fstype', 'defined') | selectattr('fstype', 'match', '^ext[234]$') | map(attribute='num') | first }}"
+      boot_part_num: "{{ ssd_info.partitions | selectattr('fstype', 'defined') | selectattr('fstype', 'match', '^(fat16|fat32|vfat)$') | map(attribute='num') | first }}"
+
+  - name: sanity check partition identification
+    assert:
+      that:
+        - root_part_num is defined
+        - boot_part_num is defined
+        - root_part_num != boot_part_num
+      fail_msg: "Could not unambiguously identify root/boot partitions on {{ ssd_dev }} — check ssd_info.partitions output above."
+
+  - name: report identified partitions
+    debug:
+      msg: "root partition is {{ ssd_dev }}{{ part_prefix }}{{ root_part_num }}, boot/firmware partition is {{ ssd_dev }}{{ part_prefix }}{{ boot_part_num }}"
+
+  - name: sanity check disk label is GPT before any write operations
+    assert:
+      that:
+        - ssd_info.disk.table == 'gpt'
+      fail_msg: "Expected {{ ssd_dev }} to have a GPT label but found '{{ ssd_info.disk.table }}' — refusing to proceed, since resizing/creating partitions without an explicit label match can cause community.general.parted to reformat the disk."
+
+# Extend the root partition. root_size is the absolute end position on
+# the disk (matching the original semantics), defaulting to 30GiB for
+# backward compatibility — override with -e root_size=XXGiB.
+  - name: Extend root partition
     become: yes
     community.general.parted:
       device: "{{ ssd_dev }}"
-      number: 2
-      part_end: "30GiB"
+      label: gpt
+      number: "{{ root_part_num }}"
+      part_end: "{{ root_size | default('30GiB') }}"
       resize: true
       state: present
 
   - name: Resize EXT4 filesystem
     become: yes
-    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}2 && resize2fs {{ ssd_dev }}{{ part_prefix }}2"
+    shell: "e2fsck -p -f {{ ssd_dev }}{{ part_prefix }}{{ root_part_num }} && resize2fs {{ ssd_dev }}{{ part_prefix }}{{ root_part_num }}"
 
-  - name: Create partition for ZFS (3rd)
+# Re-read the table after resizing so we know where the root partition
+# now actually ends, and what partition numbers are already in use —
+# this is what lets the ZFS partition placement be computed instead of
+# hardcoded (old version assumed number 3 and a fixed 30GiB start sector).
+  - name: Read device information after resize
     become: yes
-    parted:
+    community.general.parted: device="{{ ssd_dev }}" unit=s
+    register: ssd_info_post
+
+  - name: compute expected ZFS partition start sector
+    set_fact:
+      zfs_start_sector: "{{ (ssd_info_post.partitions | selectattr('num', 'equalto', root_part_num | int) | map(attribute='end') | first | int) + 1 }}"
+
+  - name: check whether a partition already occupies that start sector
+    set_fact:
+      existing_zfs_partitions: "{{ ssd_info_post.partitions | selectattr('begin', 'equalto', zfs_start_sector | int) | list }}"
+
+  - name: determine ZFS partition number (reuse existing partition if present, else pick next free number)
+    set_fact:
+      zfs_part_num: "{{ existing_zfs_partitions[0].num if (existing_zfs_partitions | length > 0) else ((ssd_info_post.partitions | map(attribute='num') | map('int') | max) + 1) }}"
+
+  - name: Create partition for ZFS
+    become: yes
+    community.general.parted:
       device: "{{ ssd_dev }}"
-      number: 3
-      part_start: 62914560s
-      part_end: -1s
+      label: gpt
+      number: "{{ zfs_part_num }}"
+      part_start: "{{ zfs_start_sector }}s"
+      part_end: "100%"
       state: present
+
+# Give udev a moment to enumerate the new partition and (re)populate
+# /dev/disk/by-id — without this, the ID lookup below can race ahead
+# of udev and come back empty.
+  - name: settle udev after partition table change
+    become: yes
+    command: "udevadm settle"
+    when: poolname is defined
 
 # Create ZFS pool  (Requires ZFS tools on the host)
   - name: ID ZFS partition
-    shell: "ls -l /dev/disk/by-id|grep $(basename {{ssd_dev}}){{ part_prefix }}3| awk '{print $9}'"
+    shell: "ls -l /dev/disk/by-id|grep $(basename {{ssd_dev}}){{ part_prefix }}{{ zfs_part_num }}$| awk '{print $9}'"
     register: ZFS_part
+    when: poolname is defined
 
   - name: show ZFS partition
     debug: var=ZFS_part.stdout_lines
+    when: poolname is defined
 
   - name: create pool # probably not idempotent
     become: yes
     command: |
-      zpool create -f -o ashift=12 
+      zpool create -f -o ashift=12
         -o compatibility=openzfs-2.1-linux
         -O acltype=posixacl -O canmount=off -O compression=lz4
         -O dnodesize=auto -O normalization=formD -O relatime=on -O xattr=sa
         -O mountpoint=/mnt -R /mnt/"{{poolname}}"
         "{{poolname}}" /dev/disk/by-id/"{{ZFS_part.stdout_lines.0}}"
+    when: poolname is defined
 
   - name: export pool
     become: yes
-    command: zpool export "{{poolname}}" 
+    command: zpool export "{{poolname}}"
+    when: poolname is defined
 
 # change host name
 
   - name: create root partition mount point
     become: yes
     file:
-      path: /mnt/RASPIROOT 
+      path: /mnt/RASPIROOT
       state: directory
 
   - name: mount new root partition
     become: yes
-    command: "mount {{ssd_dev}}{{ part_prefix }}2 /mnt/RASPIROOT"
+    command: "mount {{ssd_dev}}{{ part_prefix }}{{ root_part_num }} /mnt/RASPIROOT"
 
   - name: change hostname in /etc/hosts
     become: yes
@@ -140,14 +227,14 @@
 
   - name: mount new boot partition
     become: yes
-    command: "mount {{ssd_dev}}{{ part_prefix }}1 /mnt/RASPIFIRM"
+    command: "mount {{ssd_dev}}{{ part_prefix }}{{ boot_part_num }} /mnt/RASPIFIRM"
 
   - name: stat ~/.ssh/id_rsa.pub
     become: no
     stat:
       path: ~/.ssh/id_rsa.pub
     register: id_rsa_pub
-   
+
   - name: create variable with SSH credentials
     become: no
     shell: "echo  root_authorized_key=$(cat ~/.ssh/id_rsa.pub)"
@@ -155,14 +242,14 @@
     when: id_rsa_pub.stat.exists
 
   - name: report ssh_creds
-    debug: 
+    debug:
       msg: ssh_creds.stdout
     when: id_rsa_pub.stat.exists
 
   - name: copy SSH credentials
     shell: "echo {{ssh_creds.stdout}} >>/mnt/RASPIFIRM/sysconf.txt"
     when: id_rsa_pub.stat.exists
-        
+
   - name: unmount boot partition
     become: yes
     command: "umount /mnt/RASPIFIRM"
