@@ -7,6 +7,19 @@
   vars:
     config_system_locale: 'en_US.UTF-8'
     config_system_language: 'en_US.UTF-8'
+    poolname: polana_tank
+    install_docker: true
+    # Adapted from the pool creation used during provisioning (OpenZFS
+    # Debian root-on-ZFS instructions), minus the -R altroot piece since
+    # this runs against a live, already-booted host rather than a chroot
+    # target. Override wholesale with -e zpool_create_opts="..." if your
+    # standard set differs.
+    zpool_create_opts: >-
+      -o ashift=12
+      -o compatibility=openzfs-2.1-linux
+      -O acltype=posixacl -O canmount=off -O compression=lz4
+      -O dnodesize=auto -O normalization=formD -O relatime=on -O xattr=sa
+      -O mountpoint=none
   tasks:
 
 # install some programs
@@ -36,7 +49,7 @@
       - sudo
 
 # timezone
-  - name: Set timezone 
+  - name: Set timezone
     timezone:
       name: America/Chicago
 
@@ -45,25 +58,39 @@
     community.general.locale_gen:
       name: en_US.UTF-8
       state: present
-  
-# install ZFS following instructions at 
+
+# install ZFS following instructions at
 # https://openzfs.github.io/openzfs-docs/Getting%20Started/Debian/index.html#installation
+#
+# Backports is opt-in and off by default, since not every target release
+# has a backports suite (and hardcoding one, e.g. bullseye, breaks on
+# anything newer). Pass -e backports=1 (or any value) to enable it; when
+# enabled, it targets whatever release the host is actually running via
+# ansible_distribution_release rather than a fixed codename.
 
   - name: configure packages for ZFS from backports
     copy:
-      dest: /etc/apt/sources.list.d/bullseye-backports.list
+      dest: "/etc/apt/sources.list.d/{{ ansible_distribution_release }}-backports.list"
       content: |
-        deb http://deb.debian.org/debian bullseye-backports main contrib
-        deb-src http://deb.debian.org/debian bullseye-backports main contrib
-  
+        deb http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main contrib
+        deb-src http://deb.debian.org/debian {{ ansible_distribution_release }}-backports main contrib
+    when: backports is defined
+
   - name: Set priorities for ZFS in backports
     copy:
       dest: /etc/apt/preferences.d/90_zfs
       content: |
         Package: src:zfs-linux
-        Pin: release n=bullseye-backports
+        Pin: release n={{ ansible_distribution_release }}-backports
         Pin-Priority: 990
-  
+    when: backports is defined
+
+  - name: enable contrib component (zfs-dkms/zfsutils-linux live there, not main)
+    ansible.builtin.replace:
+      path: /etc/apt/sources.list.d/debian.sources
+      regexp: '^Components: main non-free-firmware$'
+      replace: 'Components: main contrib non-free-firmware'
+
   - name: install ZFS prerequisites
     apt:
       update_cache: 'yes'
@@ -75,24 +102,88 @@
   - name: install ZFS
     apt:
       cache_valid_time: 3600
+      state: "{{ 'latest' if backports is defined else 'present' }}"
       pkg:
-      - zfs-dkms 
+      - zfs-dkms
       - zfsutils-linux
 
-# Check for pool already imported
-# If so, asume the necessary filesystems are also created.
-  - name: check if polana_tank already imported
-    command: zpool list -H -o name polana_tank
-    register: polana_tank_imported
-    ignore_errors: 'yes'
+# If update/upgrade or the ZFS prerequisites install pulled in a newer
+# kernel, DKMS builds the module against that newer kernel's headers, but
+# the running system is still on the old one until a reboot — so the
+# module modprobe/zpool needs won't be loadable yet. Reboot only when the
+# running kernel actually differs from the newest one installed, to avoid
+# paying a reboot on every run when nothing changed.
+  - name: determine newest installed kernel version
+    shell: "basename $(ls -d /lib/modules/*/ | sort -V | tail -1)"
+    register: newest_kernel
+    changed_when: false
 
-  - name: import pool
-    command: "zpool import polana_tank"
-    when: polana_tank_imported.stdout is not match("polana_tank")
+  - name: reboot if running kernel is not the newest installed (needed for the just-built ZFS module to load)
+    become: yes
+    reboot:
+      msg: "Rebooting to load newest kernel before ZFS module load"
+      reboot_timeout: 300
+    when: newest_kernel.stdout != ansible_kernel
+
+# --- Pool: use existing if present/importable, otherwise create one ---
+
+  - name: check if pool is already imported
+    command: "zpool list -H -o name {{ poolname }}"
+    register: pool_check
+    changed_when: false
+    failed_when: false
+
+  - name: attempt to import pool if not already imported
+    command: "zpool import {{ poolname }}"
+    register: pool_import
+    when: pool_check.rc != 0
+    changed_when: pool_import.rc == 0
+    failed_when: false
+
+  - name: determine whether the pool now exists (imported or freshly found)
+    set_fact:
+      pool_exists: "{{ (pool_check.rc == 0) or ((pool_import is defined) and (pool_import.rc is defined) and (pool_import.rc == 0)) }}"
+
+  - name: create pool if none was found or imported
+    when: not pool_exists
+    block:
+
+      - name: determine root device
+        command: findmnt -n -o SOURCE /
+        register: root_device
+        changed_when: false
+
+      - name: determine parent disk of root device
+        command: "lsblk -no pkname {{ root_device.stdout }}"
+        register: root_disk
+        changed_when: false
+
+      - name: list reusable partitions on that disk (blank, or a leftover zfs_member signature from a prior pool)
+        shell: "lsblk -rno NAME,TYPE,FSTYPE /dev/{{ root_disk.stdout }} | awk '$2==\"part\" && ($3==\"\" || $3==\"zfs_member\") {print \"/dev/\"$1}'"
+        register: zfs_candidates
+        changed_when: false
+
+      - name: resolve which partition to use for the new pool
+        set_fact:
+          zfs_partition: "{{ zfs_partition | default(zfs_candidates.stdout_lines[0] if (zfs_candidates.stdout_lines | length == 1) else '') }}"
+
+      - name: fail with a clear message if no partition could be determined
+        fail:
+          msg: >-
+            No existing '{{ poolname }}' pool was found, and no partition was
+            specified or could be unambiguously auto-detected (found
+            {{ zfs_candidates.stdout_lines | length }} reusable candidate
+            partition(s) on /dev/{{ root_disk.stdout }}:
+            {{ zfs_candidates.stdout_lines }}). Re-run with
+            -e zfs_partition=/dev/xxxN to specify explicitly.
+        when: zfs_partition | length == 0
+
+      - name: create the pool
+        command: "zpool create -f {{ zpool_create_opts }} {{ poolname }} {{ zfs_partition }}"
 
   - name: Create filesystem for hbarta's home dir
     community.general.zfs:
-      name: polana_tank/home/hbarta
+      name: "{{ poolname }}/home/hbarta"
       state: present
       extra_zfs_properties:
         canmount: 'on'
@@ -100,16 +191,18 @@
     # remember to set ownership after the user is actually created.
 
 # Docker on ZFS info at https://docs.docker.com/storage/storagedriver/zfs-driver/
-  - name: Create filesystem for Docker 
+  - name: Create filesystem for Docker
     community.general.zfs:
-      name: polana_tank/docker
+      name: "{{ poolname }}/docker"
       state: present
       extra_zfs_properties:
         canmount: 'on'
         mountpoint: '/var/lib/docker'
+    when: install_docker | bool
 
 # Install Docker
   - include_tasks: docker-install.yml
+    when: install_docker | bool
 
 # add user "hbarta"
   - name: add user hbarta
@@ -119,7 +212,7 @@
       shell: /bin/bash
       generate_ssh_key: 'yes'
       create_home: 'no'
-      groups: sudo,docker
+      groups: "{{ 'sudo,docker' if (install_docker | bool) else 'sudo' }}"
       append: 'yes'
       password: $6$mysecretsalt$qJbapG68nyRab3gxvKWPUcs2g3t0oMHSHMnSKecYNpSi3CuZm.GbBqXO8BE6EI6P1JUefhA0qvD7b5LSh./PU1
       # 'mypassword'
@@ -134,4 +227,3 @@
       path: /home/hbarta
       owner: hbarta
       group: hbarta
- 
