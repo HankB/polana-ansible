@@ -35,7 +35,21 @@
     become: yes
     shell: "blkdiscard -f {{ssd_dev}}"
     when: os_image is defined
+    register: blkdiscard_result
     ignore_errors: true
+
+# blkdiscard commonly fails on USB-connected drives (discard/TRIM often
+# isn't passed through the USB-SATA/NVMe bridge). When it does, fall back
+# to wipefs to clear filesystem/pool signatures directly. The glob targets
+# the disk AND its current partitions in one call, since wipefs run against
+# just the whole-disk device only clears the disk-level partition-table
+# signature (GPT/MBR) and does not recurse into child partitions — without
+# the glob, a leftover signature (e.g. a prior zfs_member label) on an
+# existing partition would survive re-imaging and confuse detection later.
+  - name: fall back to wipefs if blkdiscard failed
+    become: yes
+    shell: "wipefs -a -f {{ ssd_dev }}*"
+    when: os_image is defined and blkdiscard_result is failed
 
 # copy OS image
 # Current Debian cloud/raspi images ship as a .tar.xz containing a single
